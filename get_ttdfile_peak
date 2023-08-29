@@ -1,14 +1,12 @@
 #!/bin/bash
 
-# 默认值
-#SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 default_rrdfile="rrd.txt"
 default_rrdtool_path="/usr/local/rrdtool/bin/rrdtool"
+Binsys=1000
 Interval_Time=1
 F_Count_Time=86400
 
-# 初始化变量
 rrddir="$SCRIPT_DIR"
 rrdfile="$default_rrdfile"
 rrdtool_path="$default_rrdtool_path"
@@ -17,7 +15,6 @@ rrd_full_path="$rrddir/$rrdfile"
 LOG_DIR="$SCRIPT_DIR/logs"
 LOG_FILE="$LOG_DIR/script_log_$(date +'%Y-%m-%d').log"
 RETAIN_DAYS=30
-
 mkdir -p "$LOG_DIR"
 
 log() {
@@ -49,8 +46,6 @@ display_help() {
   --Start_time /-S  <开始时间>  统计RRD数据的开始时间
   --End_time   /-E  <结束时间>  统计RRD数据的结束时间
   --help, -h                  显示帮助信息
-示例:
-  ./your_script.sh -d /path/to/rrd -f mydata.rrd -t /usr/bin/rrdtool -S 1676543210 -E 1678765432
 EOF
 }
 
@@ -112,10 +107,8 @@ perform_checks() {
     fi
 }
 
-
-# 单位转换
+# 处理速度单位转换
 process_speed() {
-    local Binsys=1000
     local speed="$1"
     local speed_p=${speed%.*}
     local decimal_part=${speed#*.}
@@ -145,9 +138,10 @@ process_speed() {
 process_data() {
   log "Processing data..."
   while IFS= read -r line; do
-    fetch_data=$("$rrdtool_path" fetch "$line" AVERAGE --start "$Start_time" --end "$End_time")
+    #fetch_data=$("$rrdtool_path" fetch "$line" AVERAGE --start "$Start_time" --end "$End_time" | sed 's/\-nan/0.0000000000e+00/g')
+    fetch_data=$("$rrdtool_path" fetch "$line" AVERAGE --start "$Start_time" --end "$End_time" | sed 's/\-nan/0/g')
 
-    max_values=$(echo "$fetch_data" | awk 'BEGIN { max_in=0; max_out=0 } /^[0-9]+:/ { in_val=$2*8; out_val=$3*8; if (in_val > max_in) max_in = in_val; if (out_val > max_out) max_out = out_val } END { printf "%.2f %.2f", max_in, max_out }')
+    max_values=$(echo "$fetch_data" | awk 'BEGIN { max_in=0; max_out=0 } /^[0-9]+:/ { in_val=($2+0)*8; out_val=($3+0)*8; if (in_val > max_in) max_in = in_val; if (out_val > max_out) max_out = out_val } END { printf "%.2f %.2f", max_in, max_out }')
 
     read -r max_in max_out <<< "$max_values"
 
@@ -161,10 +155,6 @@ process_data() {
   done < "$rrd_full_path"
 }
 
-cleanup_old_logs() {
-  find "$LOG_DIR" -type f -mtime +$RETAIN_DAYS -exec rm {} \;
-}
-
 main() {
   calculate_time
   parse_command_line "$@"
@@ -172,6 +162,10 @@ main() {
   process_data
 }
 
-# 执行主要部分
+cleanup_old_logs() {
+  find "$LOG_DIR" -type f -mtime +$RETAIN_DAYS -exec rm {} \;
+}
+
+#main "$@" 2>&1 | tee "$LOG_FILE"
 main "$@" 2>&1 | tee -a "$LOG_FILE"
 cleanup_old_logs

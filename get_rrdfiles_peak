@@ -60,7 +60,7 @@ process_data() {
     rrd_file="${rrd_files[i]}"
     label_in="a$((i + 1))"
     label_out="b$((i + 1))"
-    rrd_def+="DEF:$label_in=\"$rrd_file\":traffic_in:AVERAGE DEF:$label_out=\"$rrd_file\":traffic_out:AVERAGE "
+    rrd_def+="DEF:$label_in=$rrd_file:traffic_in:AVERAGE DEF:$label_out=$rrd_file:traffic_out:AVERAGE "
     
     if [ $i -eq 0 ]; then
       rrd_cdef_cf_in="$label_in,UN,0,$label_in,IF"
@@ -71,14 +71,16 @@ process_data() {
     fi
   done
 
-  #def_cdef="$rrd_def CDEF:sumin=$rrd_cdef_cf_in CDEF:sumout=$rrd_cdef_cf_out"
-  #xport_data=$(eval /usr/sbin/rrdtool xport -m 1440 -s $start_time -e $end_time $def_cdef XPORT:sumin:traffic_in XPORT:sumout:traffic_out | sed -nE "s/^[ \t]*<row><t>([0-9]+)<\/t><v>([0-9.e+-]+)<\/v><v>([0-9.e+-]+)<\/v><\/row>[ \t]*$/\1 \2 \3/p")
-  #xport_data=$(rrdtool /usr/sbin/rrdtool xport -m 1440 -s $start_time -e $end_time "$def_cdef" "XPORT:sumin:\"traffic_in\"" "XPORT:sumout:\"traffic_out\"" | sed -nE "s/^[ \t]*<row><t>[0-9]+<\/t><v>([0-9.e+-]+)<\/v><v>([0-9.e+-]+)<\/v><\/row>[ \t]*$/\1 \2/p") 
-  #max_values=$(echo "$xport_data" | awk 'BEGIN { max_in=0; max_out=0 } { in_val=$1*8; out_val=$2*8; if (in_val > max_in) max_in = in_val; if (out_val > max_out) max_out = out_val } END { printf "%.2f %.2f %.2f", (max_in > max_out) ? max_in : max_out, max_in, max_out }')
-
   def_cdef="$rrd_def CDEF:sumin=$rrd_cdef_cf_in,8,* CDEF:sumout=$rrd_cdef_cf_out,8,*"
-  xport_data=$(eval /usr/sbin/rrdtool xport -m 1440 -s $start_time -e $end_time $def_cdef XPORT:sumin:traffic_in XPORT:sumout:traffic_out | sed -nE "s/^[ \t]*<row><t>([0-9]+)<\/t><v>([0-9.e+-]+)<\/v><v>([0-9.e+-]+)<\/v><\/row>[ \t]*$/\1 \2 \3/p")
-  #max_values=$(echo "$xport_data" | awk 'BEGIN { max_in=0; max_out=0 } { in_val=$1; out_val=$2; if (in_val > max_in) max_in = in_val; if (out_val > max_out) max_out = out_val } END { printf "%.2f %.2f", max_in, max_out }')
+  #xport_data=$(rrdtool xport -m 1440 -s $start_time -e $end_time $def_cdef XPORT:sumin:traffic_in XPORT:sumout:traffic_out | sed -nE "s/^[ \t]*<row><t>([0-9]+)<\/t><v>([0-9.e+-]+)<\/v><v>([0-9.e+-]+)<\/v><\/row>[ \t]*$/\1 \2 \3/p")
+  xport_data=$(/usr/sbin/rrdtool xport -m 1440 -s $start_time -e $end_time $def_cdef XPORT:sumin:traffic_in XPORT:sumout:traffic_out | sed -nE "s/^[ \t]*<row><t>([0-9]+)<\/t><v>([0-9.e+-]+)<\/v><v>([0-9.e+-]+)<\/v><\/row>[ \t]*$/\1 \2 \3/p")  
+  #xport_data=$(rrdtool xport -s $start_time -e $end_time "$def_cdef" "XPORT:sumin:\"traffic_in\"" "XPORT:sumout:\"traffic_out\"" | sed -nE "s/^[ \t]*<row><t>[0-9]+<\/t><v>([0-9.e+-]+)<\/v><v>([0-9.e+-]+)<\/v><\/row>[ \t]*$/\1 \2/p")
+  #xport_data=$(/usr/sbin/rrdtool xport -m 1440 -s $start_time -e $end_time $def_cdef XPORT:sumin:traffic_in XPORT:sumout:traffic_out | sed -nE "s/^[ \t]*<row><t>([0-9]+)<\/t><v>([0-9.e+-]+)<\/v><v>([0-9.e+-]+)<\/v><\/row>[ \t]*$/\1 \2 \3/p")
+  #xport_data=$(rrdtool /usr/sbin/rrdtool xport -m 1440 -s $start_time -e $end_time "$def_cdef" "XPORT:sumin:\"traffic_in\"" "XPORT:sumout:\"traffic_out\"" | sed -nE "s/^[ \t]*<row><t>[0-9]+<\/t><v>([0-9.e+-]+)<\/v><v>([0-9.e+-]+)<\/v><\/row>[ \t]*$/\1 \2/p") 
+  #regex="<row><t>([0-9]+)<\/t><v>([0-9.e+-]+)<\/v><v>([0-9.e+-]+)<\/v><\/row>"
+  #echo "$xport_data" | sed -E "s/$regex/\1,\2,\3/"
+  #max_values=$(echo "$xport_data" | awk 'BEGIN { max_in=0; max_out=0 } { in_val=$1; out_val=$2; if (in_val > max_in) max_in = in_val; if (out_val > max_out) max_out = out_val } END { printf "%.2f %.2f %.2f", (max_in > max_out) ? max_in : max_out, max_in, max_out }')
+  #max_values=$(echo "$xport_data" | awk 'BEGIN { max_in=0; max_out=0 } { in_val=$1*8; out_val=$2*8; if (in_val > max_in) max_in = in_val; if (out_val > max_out) max_out = out_val } END { printf "%.2f %.2f", max_in, max_out }')
   max_values=$(echo "$xport_data" | awk 'BEGIN { max_in=0; max_out=0 } { in_val=$2; out_val=$3; if (in_val > max_in) max_in = in_val; if (out_val > max_out) max_out = out_val } END { printf "%.2f %.2f %.2f", (max_in > max_out) ? max_in : max_out, max_in, max_out }')
 
   read -r max_value max_in max_out <<<"$max_values"
@@ -86,7 +88,7 @@ process_data() {
   Human_bps_in=$(to_human_unit "$max_in")
   Human_bps_out=$(to_human_unit "$max_out")
 
-  echo "$line Max $Human_bps_max In $Human_bps_in Out $Human_bps_out"
+  echo "Max $Human_bps_max In $Human_bps_in Out $Human_bps_out"
 }
 
 get_data_from_config() {

@@ -34,6 +34,7 @@ process_data() {
     label_in="a$((i + 1))"
     label_out="b$((i + 1))"
     rrd_def+="DEF:$label_in=$rrd_file:traffic_in:AVERAGE DEF:$label_out=$rrd_file:traffic_out:AVERAGE "
+    #rrd_def+="DEF:$label_in=$rrd_file:traffic_in:MAX DEF:$label_out=$rrd_file:traffic_out:MAX "
 
     if [ $i -eq 0 ]; then
       rrd_cdef_cf_in="$label_in,UN,0,$label_in,IF"

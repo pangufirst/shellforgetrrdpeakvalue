@@ -45,15 +45,17 @@ process_data() {
     fi
   done
 
-#  rrdtool graph /dev/null -s $start_time -e $end_time --height=10 --width=500 --alt-autoscale \
+#  rrdtool graph /dev/null -s $start_time -e $end_time --width=500 \
 #    $rrd_def CDEF:sumin=$rrd_cdef_cf_in,8,* CDEF:sumout=$rrd_cdef_cf_out,8,* CDEF:maxinout=sumin,sumout,GT,sumin,sumout,IF \
 #    PRINT:maxinout:MAX:"%0.2lf%s" PRINT:sumin:MAX:"%0.2lf%s" PRINT:sumout:MAX:"%0.2lf%s" | awk 'NR == 2 {maxinout=$1} NR == 3 {sumin=$1} NR == 4 {sumout=$1} END {print maxinout sumin, sumout}'
   rrdtool_output=$(rrdtool graph /dev/null -s $start_time -e $end_time --height=10 --width=500 --alt-autoscale \
     $rrd_def CDEF:sumin=$rrd_cdef_cf_in,8,* CDEF:sumout=$rrd_cdef_cf_out,8,* CDEF:maxinout=sumin,sumout,GT,sumin,sumout,IF \
     PRINT:maxinout:MAX:"%0.2lf%s" PRINT:sumin:MAX:"%0.2lf%s" PRINT:sumout:MAX:"%0.2lf%s" 2>&1 | grep -v "0x0")
   #rrdtool_output=$(echo -e "$rrdtool_output" | tr '\n' ' ')
-  #filtered_output=$(echo "$rrdtool_output" | awk 'NR>1' | tr -s '\n' ' ')
-  rrdtool_output=$(echo "$rrdtool_output" | awk 'ORS=" "')
+  #rrdtool_output=$(echo "$rrdtool_output" | awk 'ORS=" "')
+  #rrdtool_output=$(echo "$rrdtool_output" | awk 'BEGIN {ORS = ""} NR > 1 {print " "} {print} END {if (NR) print ""}')
+  #rrdtool_output=$(echo "$rrdtool_output" | awk '{printf "%s ", $0}')
+  rrdtool_output=$(echo "$rrdtool_output" | awk '{printf "%s%s", sep, $0; sep=" "}')
   echo "$rrdtool_output"
 }
 

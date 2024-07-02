@@ -107,7 +107,7 @@ perform_checks() {
     fi
 }
 
-# 处理速度单位转换
+# 处理单位转换
 process_speed() {
     local speed="$1"
     local speed_p=${speed%.*}
